@@ -24,8 +24,6 @@ contract Vesting is Initializable, OwnableUpgradeable {
     IERC20 private token;
     /// @dev start time of the first epoch
     uint96 private startTime;
-    /// @dev amount of tokens claimed so far
-    uint256 private totalClaimed;
     /// @dev max amount of tokens to claim per epoch (epoch = month)
     uint256 private maxTokensInEpoch;
     /// @dev epoch => claimed, amount of tokens claimed in respective epoch
@@ -43,8 +41,8 @@ contract Vesting is Initializable, OwnableUpgradeable {
      * @notice  Initializes the proxy contract
      * @param   _token  address of the locked token
      * @param   _owner  owner the contract
-     * @param   _totalLocked  total amount of tokens locked, contracts will transfer this amount from the owner's balance
      * @param   _maxTokensInEpoch  max amount of tokens to unlock in 1 month
+     * @param   _startTime  timestamp of the first epoch
      */
     function initialize(
         address _token,
@@ -59,6 +57,7 @@ contract Vesting is Initializable, OwnableUpgradeable {
         __Ownable_init(_owner);
         token = IERC20(_token);
         maxTokensInEpoch = _maxTokensInEpoch;
+        startTime = _startTime;
     }
 
     /**
@@ -79,7 +78,7 @@ contract Vesting is Initializable, OwnableUpgradeable {
         require(percent <= ONE_PERCENT, "vesting didnt finish");
         uint256 balance = token.balanceOf(address(this));
         if (balance > 0) {
-            token.safeTransfer(msg.sender, _amount);
+            token.safeTransfer(msg.sender, balance);
         }
     }
 

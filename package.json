@@ -8,7 +8,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "forge clean && forge test"
+    "test": "forge clean && forge test",
+    "deploy": "bash -c 'source .env && forge clean && forge script DeployVesting --broadcast --fork-url $RPC --verify --etherscan-api-key $ETHERSCAN_API_KEY'"
   },
   "keywords": [],
   "author": "",
