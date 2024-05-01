@@ -30,7 +30,6 @@ contract VestingTest is Test {
             Vesting.initialize.selector,
             address(token),
             owner,
-            with_decimals(700_000, decimals),
             with_decimals(10_000, decimals),
             uint96(block.timestamp)
         );
@@ -51,7 +50,6 @@ contract VestingTest is Test {
         vesting.initialize(
             address(token),
             owner,
-            with_decimals(700_000, 18),
             with_decimals(10_000, 18),
             uint96(block.timestamp)
         );
