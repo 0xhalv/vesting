@@ -49,8 +49,8 @@ Rename `.env.example` to `.env` and put your secrets inside\
 Run `yarn deploy`\
 After deploying the contract the owner must send 700.000 tokens to the vesting contract\
 
-Deployed on BSC Testnet:\
+Deployed on BSC Testnet:
 
-Proxy contract: [0xf6b0cd14e7951360dc32a876f7852cca8fd12bc1](https://testnet.bscscan.com/address/0xf6b0cd14e7951360dc32a876f7852cca8fd12bc1)
-Implementation contract: [0xd3015780a7eba1d17215435b676818ef87094ad8](https://testnet.bscscan.com/address/0xd3015780a7eba1d17215435b676818ef87094ad8)
+Proxy contract: [0xf6b0cd14e7951360dc32a876f7852cca8fd12bc1](https://testnet.bscscan.com/address/0xf6b0cd14e7951360dc32a876f7852cca8fd12bc1)\
+Implementation contract: [0xd3015780a7eba1d17215435b676818ef87094ad8](https://testnet.bscscan.com/address/0xd3015780a7eba1d17215435b676818ef87094ad8)\
 Mock ERC20: [0xf2e097c90cc1b260e614d2250fbdbfb2b3059a74](https://testnet.bscscan.com/address/0xf2e097c90cc1b260e614d2250fbdbfb2b3059a74)
