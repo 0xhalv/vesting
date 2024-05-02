@@ -17,9 +17,8 @@ contract DeployVesting is Script {
             Vesting.initialize.selector,
             address(token),
             deployer,
-            700_000e18,
             10_000e18,
-            uint96(block.timestamp)
+            uint96(block.timestamp + 120)
         );
         address proxy = Upgrades.deployTransparentProxy(
             "Vesting.sol:Vesting",

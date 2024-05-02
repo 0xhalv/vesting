@@ -143,10 +143,17 @@ contract VestingTest is Test {
     function testOnlyOwnerCanClaim() external {
         address user1 = address(0x1338);
         vm.expectRevert();
-        vesting.claim(1);
+        vesting.distribute(new address[](1), new uint256[](1));
     }
 
-    function testClaim() external {
+    function testDistribute() external {
+        address[] memory recipients = new address[](2);
+        recipients[0] = address(0x1);
+        recipients[1] = address(0x2);
+        uint256[] memory values = new uint256[](2);
+        values[0] = with_decimals(250);
+        values[1] = with_decimals(250);
+
         uint256 startTime = block.timestamp;
         // year 1, month 1
         uint256 epoch = vesting.timestampToEpoch(startTime);
@@ -154,51 +161,68 @@ contract VestingTest is Test {
         assertEq(claimable, with_decimals(1000));
 
         vm.startPrank(owner);
-        vesting.claim(with_decimals(100));
-        vesting.claim(with_decimals(500));
-        vesting.claim(with_decimals(300));
-        vesting.claim(with_decimals(100));
-        assertEq(token.balanceOf(owner), with_decimals(1000));
+        vesting.distribute(recipients, values);
+        vesting.distribute(recipients, values); // distributing 2 times
+        assertEq(token.balanceOf(address(0x1)), with_decimals(500));
+        assertEq(token.balanceOf(address(0x2)), with_decimals(500));
 
         vm.expectRevert("claiming too much");
-        vesting.claim(1);
+        vesting.distribute(recipients, values); // 3rd time should fail
 
         // year 1, month 2
         vm.warp(startTime + 31 days);
-        vesting.claim(with_decimals(1000));
+        values[0] = with_decimals(500);
+        values[1] = with_decimals(500);
+        vesting.distribute(recipients, values);
         vm.expectRevert("claiming too much");
-        vesting.claim(1);
+        vesting.distribute(recipients, values);
 
         // year 4, month 1
         vm.warp(startTime + 1080 days);
-        vesting.claim(with_decimals(10000));
+        values[0] = with_decimals(5000);
+        values[1] = with_decimals(5000);
+        vesting.distribute(recipients, values);
+
+        values[0] = with_decimals(1);
+        values[1] = with_decimals(1);
         vm.expectRevert("claiming too much");
-        vesting.claim(1);
+        vesting.distribute(recipients, values);
 
         // year 10, month 1
         vm.warp(startTime + 3600 days);
-        vesting.claim(with_decimals(2500));
+        values[0] = with_decimals(1250);
+        values[1] = with_decimals(1250);
+        vesting.distribute(recipients, values);
         vm.expectRevert("claiming too much");
-        vesting.claim(1);
+        vesting.distribute(recipients, values);
     }
 
-    function testClaimForEpoch() external {
+    function testDistributeForEpoch() external {
+        address[] memory recipients = new address[](2);
+        recipients[0] = address(0x1);
+        recipients[1] = address(0x2);
+        uint256[] memory values = new uint256[](2);
+        values[0] = with_decimals(250);
+        values[1] = with_decimals(250);
         vm.startPrank(owner);
 
         uint256 startTime = block.timestamp;
 
         vm.warp(startTime + 360 days);
-        vesting.claimForEpoch(1, with_decimals(1000));
+        vesting.distributeForEpoch(1, recipients, values);
+        vesting.distributeForEpoch(1, recipients, values);
         vm.expectRevert("claiming too much");
-        vesting.claimForEpoch(1, 1);
+        vesting.distributeForEpoch(1, recipients, values);
 
-        vesting.claimForEpoch(2, with_decimals(1000));
+        values[0] = with_decimals(500);
+        values[1] = with_decimals(500);
+        vesting.distributeForEpoch(2, recipients, values);
         vm.expectRevert("claiming too much");
-        vesting.claimForEpoch(2, 1);
+        vesting.distributeForEpoch(2, recipients, values);
 
-        vesting.claimForEpoch(3, with_decimals(1000));
+        vesting.distributeForEpoch(3, recipients, values);
         vm.expectRevert("claiming too much");
-        vesting.claimForEpoch(2, 1);
+        vesting.distributeForEpoch(3, recipients, values);
     }
 
     function testCannotClaimFutureEpochs() external {
@@ -206,7 +230,7 @@ contract VestingTest is Test {
 
         uint256 futureEpoch = vesting.timestampToEpoch(block.timestamp + 30 days);
         vm.expectRevert("epoch in future");
-        vesting.claimForEpoch(futureEpoch, 1);
+        vesting.distributeForEpoch(futureEpoch, new address[](0), new uint256[](0));
     }
 
     function testCannotClaimAfterVestingFinishes() external {
@@ -214,7 +238,7 @@ contract VestingTest is Test {
 
         vm.warp(block.timestamp + 10800 days); // 30 years
         vm.expectRevert("vesting finished");
-        vesting.claim(1);
+        vesting.distribute(new address[](0), new uint256[](0));
     }
 
     function testWithdrawAll() external {

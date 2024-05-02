@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "forge clean && forge test",
+    "coverage": "forge clean && forge coverage",
     "deploy": "bash -c 'source .env && forge clean && forge script DeployVesting --broadcast --fork-url $RPC --verify --etherscan-api-key $ETHERSCAN_API_KEY'"
   },
   "keywords": [],

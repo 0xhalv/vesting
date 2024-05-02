@@ -1,18 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import {Initializable} from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "openzeppelin-contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {IVesting} from "./interfaces/IVesting.sol";
 
 /**
  * @author  0xhalv
  * @title   Vesting contract
  * @notice  Contract that distributes ERC20 tokens on a monthly basis
  */
-contract Vesting is Initializable, OwnableUpgradeable {
+contract Vesting is
+    IVesting,
+    Initializable,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable
+{
     using SafeERC20 for IERC20;
 
     /// @dev epoch is 1 month
@@ -28,9 +35,6 @@ contract Vesting is Initializable, OwnableUpgradeable {
     uint256 private maxTokensInEpoch;
     /// @dev epoch => claimed, amount of tokens claimed in respective epoch
     mapping(uint256 => uint256) private claimedInEpoch;
-
-    /// @dev emitted on successful claim
-    event Claimed(uint256 epoch, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -60,18 +64,39 @@ contract Vesting is Initializable, OwnableUpgradeable {
         startTime = _startTime;
     }
 
-    /**
-     * @notice  claim unlocked tokens for current epoch
-     * @param   _amount  amount to claim
-     */
-    function claim(uint256 _amount) external onlyOwner {
+    /// @inheritdoc IVesting
+    function distribute(
+        address[] calldata _recipients,
+        uint256[] calldata _values
+    ) external onlyOwner {
         uint256 epoch = timestampToEpoch(block.timestamp);
-        claimForEpoch(epoch, _amount);
+        distributeForEpoch(epoch, _recipients, _values);
     }
 
-    /**
-     * @notice  When vesting finishes, admin can withdraw the rest of tokens
-     */
+    /// @inheritdoc IVesting
+    function distributeForEpoch(
+        uint256 _epoch,
+        address[] calldata _recipients,
+        uint256[] calldata _values
+    ) public onlyOwner nonReentrant {
+        uint256 currentEpoch = timestampToEpoch(block.timestamp);
+        require(_epoch <= currentEpoch, "epoch in future");
+        require(_recipients.length == _values.length, "array length mismatch");
+        uint256 claimable = claimableInEpoch(_epoch);
+        uint256 claimed = claimedInEpoch[_epoch];
+
+        for(uint256 i = 0; i < _recipients.length; ++i) {
+            uint256 amount = _values[i];
+            address recipient = _recipients[i];
+            claimed += amount;
+            token.safeTransfer(recipient, amount);
+        }
+        require(claimed <= claimable, "claiming too much");
+        claimedInEpoch[_epoch] = claimed;
+        emit Distributed(_epoch, _recipients, _values);
+    }
+
+    /// @inheritdoc IVesting
     function withdrawAll() external onlyOwner {
         uint256 epoch = timestampToEpoch(block.timestamp);
         uint256 percent = percentInEpoch(epoch);
@@ -82,39 +107,13 @@ contract Vesting is Initializable, OwnableUpgradeable {
         }
     }
 
-    /**
-     * @notice  claim unclaimed tokens for past epochs
-     * @param   _epoch  epoch id
-     * @param   _amount  amount to claim
-     */
-    function claimForEpoch(uint256 _epoch, uint256 _amount) public onlyOwner {
-        uint256 currentEpoch = timestampToEpoch(block.timestamp);
-        require(_epoch <= currentEpoch, "epoch in future");
-
-        uint256 claimable = claimableInEpoch(_epoch);
-        uint256 claimed = claimedInEpoch[_epoch];
-        require(_amount + claimed <= claimable, "claiming too much");
-        claimedInEpoch[_epoch] = claimed + _amount;
-        token.safeTransfer(msg.sender, _amount);
-        
-        emit Claimed(_epoch, _amount);
-    }
-
-    /**
-     * @notice  returns the epoch id for given timestamp
-     * @param   _ts  timestamp
-     * @return  uint256  epoch id
-     */
+    /// @inheritdoc IVesting
     function timestampToEpoch(uint256 _ts) public view returns (uint256) {
         require(_ts >= startTime, "invalid time");
         return (_ts - startTime) / EPOCH_DURATION + 1;
     }
 
-    /**
-     * @notice  returns max amount of tokens claimable in given epoch
-     * @param   _epoch  epoch id
-     * @return  uint256  amount of tokens
-     */
+    /// @inheritdoc IVesting
     function claimableInEpoch(uint256 _epoch) public view returns (uint256) {
         uint256 percent = percentInEpoch(_epoch);
         require(percent > ONE_PERCENT, "vesting finished");
@@ -139,7 +138,7 @@ contract Vesting is Initializable, OwnableUpgradeable {
      * @param   _epoch  epoch id
      * @return  uint256  percentage
      */
-    function percentInEpoch(uint256 _epoch) internal view returns (uint256) {
+    function percentInEpoch(uint256 _epoch) internal pure returns (uint256) {
         // 10% in the first year
         if (_epoch <= 12) {
             return 10 * ONE_PERCENT;
