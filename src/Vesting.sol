@@ -79,6 +79,7 @@ contract Vesting is
         address[] calldata _recipients,
         uint256[] calldata _values
     ) public onlyOwner nonReentrant {
+        require(_epoch > 0, "invalid epoch id");
         uint256 currentEpoch = timestampToEpoch(block.timestamp);
         require(_epoch <= currentEpoch, "epoch in future");
         require(_recipients.length == _values.length, "array length mismatch");
